@@ -1,0 +1,19 @@
+{
+  "name": "scholarlens-zotero",
+  "version": "0.1.4",
+  "private": true,
+  "type": "module",
+  "description": "ScholarLens for Zotero — academic selection translation with formula protection and KaTeX rendering.",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "install-plugin": "node build.mjs --install"
+  },
+  "dependencies": {
+    "katex": "^0.16.11"
+  },
+  "devDependencies": {
+    "esbuild": "^0.23.1",
+    "fflate": "^0.8.2"
+  }
+}

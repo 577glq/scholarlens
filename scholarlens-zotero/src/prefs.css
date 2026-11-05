@@ -1,0 +1,18 @@
+#scholarlens-api-group html|input[type="text"],
+#scholarlens-api-group html|input[type="password"],
+#scholarlens-api-group html|input[type="number"],
+#scholarlens-targetLanguage,
+#scholarlens-temperature,
+#scholarlens-customPrompt {
+  padding: 3px 6px;
+  border: 1px solid var(--color-border, #b9b9b9);
+  border-radius: 4px;
+  background: var(--material-background, #fff);
+  color: inherit;
+  font-size: 12px;
+}
+
+#scholarlens-test-status {
+  color: var(--fill-secondary, #666);
+  font-size: 12px;
+}

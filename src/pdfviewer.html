@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>ScholarLens PDF Reader</title>
+    <link rel="stylesheet" href="vendor/pdfjs/pdf_viewer.css" />
+    <link rel="stylesheet" href="pdfviewer.css" />
+  </head>
+  <body>
+    <header class="viewer-header">
+      <div class="viewer-brand">
+        <img src="icons/icon32.png" alt="" width="27" height="27" />
+        <div class="viewer-brand-text">
+          <div class="viewer-brand-name">ScholarLens</div>
+          <div class="viewer-brand-sub">PDF READER</div>
+        </div>
+        <span class="viewer-divider"></span>
+        <span class="viewer-file" id="fileLabel">正在载入 PDF…</span>
+      </div>
+
+      <div class="viewer-controls">
+        <button class="viewer-control" id="prevPage" type="button" title="上一页" aria-label="上一页">‹</button>
+        <span class="page-indicator"><span id="pageNumber">–</span> / <span id="pageCount">–</span></span>
+        <button class="viewer-control" id="nextPage" type="button" title="下一页" aria-label="下一页">›</button>
+        <span class="control-divider"></span>
+        <button class="viewer-control" id="zoomOut" type="button" title="缩小" aria-label="缩小">−</button>
+        <span class="zoom-label" id="zoomLabel">100%</span>
+        <button class="viewer-control" id="zoomIn" type="button" title="放大" aria-label="放大">＋</button>
+        <button class="viewer-control viewer-fit" id="fitWidth" type="button">适合宽度</button>
+      </div>
+    </header>
+
+    <div class="viewer-hint">
+      <span class="viewer-hint-mark">∑</span>
+      选中 PDF 中的文字后按 <kbd>Alt</kbd> + <kbd>T</kbd> 直接翻译；也可以点击浮出的按钮。
+    </div>
+
+    <main class="viewer-main">
+      <div id="viewerContainer">
+        <div id="viewer" class="pdfViewer"></div>
+      </div>
+
+      <section class="viewer-start" id="startScreen" hidden>
+        <div class="viewer-start-card">
+          <div class="viewer-start-kicker">SCHOLARLENS PDF READER</div>
+          <h1>打开论文 PDF</h1>
+          <p class="viewer-start-copy">
+            选择本地 PDF，或粘贴在线 PDF 链接。打开后选中文字，按 <kbd>Alt</kbd> + <kbd>T</kbd> 直接翻译。
+          </p>
+
+          <label class="drop-zone" id="dropZone" for="pdfFile">
+            <input id="pdfFile" type="file" accept="application/pdf,.pdf" hidden />
+            <span class="drop-mark">PDF</span>
+            <strong>选择本地 PDF</strong>
+            <span>也可以把 PDF 拖到这里</span>
+          </label>
+
+          <div class="start-divider"><span>或粘贴在线 PDF 链接</span></div>
+
+          <div class="start-url-row">
+            <input id="pdfUrlInput" type="url" placeholder="https://…/paper.pdf" spellcheck="false" />
+            <button id="loadUrlButton" type="button">打开</button>
+          </div>
+          <p class="start-error" id="startError" hidden role="status" aria-live="polite"></p>
+          <p class="start-note">PDF 只在本机渲染，不会上传到 ScholarLens。</p>
+        </div>
+      </section>
+
+      <div class="viewer-overlay" id="loadingOverlay" hidden>
+        <div class="viewer-loading-card">
+          <span class="viewer-spinner"></span>
+          <div>
+            <strong>正在渲染 PDF</strong>
+            <p id="loadingText">首次打开需要下载并建立文字层…</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="viewer-overlay" id="errorOverlay" hidden>
+        <div class="viewer-error-card">
+          <div class="viewer-error-kicker">PDF READER</div>
+          <h1 id="errorTitle">无法打开这个 PDF</h1>
+          <p id="errorMessage">请返回论文页面，使用工具栏弹窗重新打开。</p>
+          <div class="viewer-error-actions">
+            <button id="permissionButton" type="button" hidden>授权访问 PDF 域名</button>
+            <button id="chooseFileButton" type="button" hidden>选择其他 PDF</button>
+            <button id="retryButton" type="button">重试</button>
+            <button id="closeButton" type="button">关闭页面</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="vendor/pdfjs/pdf.min.js"></script>
+    <script src="vendor/pdfjs/pdf_viewer.js"></script>
+    <script src="content.js"></script>
+    <script src="pdfviewer.js"></script>
+  </body>
+</html>

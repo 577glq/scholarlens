@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>ScholarLens 设置 · 学术划词翻译</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <div class="page-glow" aria-hidden="true"></div>
+
+    <header class="topbar">
+      <a class="brand" href="#main" aria-label="ScholarLens 设置首页">
+        <img src="icons/icon48.png" alt="" width="30" height="30" />
+        <span class="brand-name">ScholarLens</span>
+        <span class="brand-tag">学术划词翻译</span>
+      </a>
+      <div class="topbar-right">
+        <span class="version">v<span id="version">0.1.0</span></span>
+        <span class="local-pill"><span class="local-dot"></span>本地优先</span>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <div class="eyebrow">ACADEMIC READING COMPANION</div>
+        <h1>让论文阅读<br /><em>不打断思路。</em></h1>
+        <p class="hero-copy">
+          选中段落即可翻译或解释。公式会被单独抽取、保护，并以 KaTeX 还原；术语、引用与符号保持原样。
+        </p>
+        <div class="hero-meta">
+          <span class="meta-chip" id="configStatus"><span class="meta-dot"></span><span id="configStatusText">正在读取配置…</span></span>
+          <span class="meta-note">支持 MathML · KaTeX · MathJax · LaTeX</span>
+        </div>
+      </section>
+
+      <div class="layout">
+        <div class="main-column">
+          <section class="welcome" id="welcome" hidden>
+            <button class="welcome-close" type="button" id="welcomeClose" aria-label="关闭欢迎提示">×</button>
+            <div class="welcome-kicker">欢迎使用</div>
+            <h2>三步开始阅读</h2>
+            <ol class="welcome-steps">
+              <li><span>1</span>填入你的 API Key，保存设置。</li>
+              <li><span>2</span>回到论文页面，选中一段文字或一个公式。</li>
+              <li><span>3</span>点击浮出的「翻译」或「解释」；也可用右键菜单和快捷键。</li>
+            </ol>
+          </section>
+
+          <div class="setup-notice" id="setupNotice" hidden>
+            <strong>还差一步：</strong>填写 API Key 后即可开始使用。密钥只保存在本机浏览器中。
+          </div>
+
+          <form id="settingsForm" novalidate>
+            <section class="card">
+              <header class="card-header">
+                <div class="section-number">01</div>
+                <div>
+                  <h2>连接模型</h2>
+                  <p>兼容 OpenAI Chat Completions 接口。默认使用 DeepSeek。</p>
+                </div>
+              </header>
+
+              <div class="preset-row" aria-label="服务预设">
+                <button type="button" class="preset" data-preset="deepseek">DeepSeek</button>
+                <button type="button" class="preset" data-preset="openai">OpenAI</button>
+                <button type="button" class="preset" data-preset="ollama">本地 Ollama</button>
+              </div>
+
+              <div class="field">
+                <label for="apiBase">API Base URL</label>
+                <input
+                  id="apiBase"
+                  name="apiBase"
+                  type="url"
+                  inputmode="url"
+                  spellcheck="false"
+                  autocomplete="off"
+                  placeholder="https://api.deepseek.com/v1"
+                />
+                <div class="hint">若接口完整地址以 <code>/chat/completions</code> 结尾，也可以直接粘贴完整地址。</div>
+              </div>
+
+              <div class="field">
+                <label for="apiKey">API Key</label>
+                <div class="input-with-button">
+                  <input
+                    id="apiKey"
+                    name="apiKey"
+                    type="password"
+                    spellcheck="false"
+                    autocomplete="new-password"
+                    placeholder="sk-…"
+                  />
+                  <button type="button" class="input-action" id="revealKey" aria-label="显示或隐藏 API Key">显示</button>
+                </div>
+                <div class="hint">存储于 <code>chrome.storage.local</code>，不会上传到 ScholarLens 的任何服务器。本地服务可留空。</div>
+              </div>
+
+              <div class="field">
+                <label for="model">模型</label>
+                <input
+                  id="model"
+                  name="model"
+                  type="text"
+                  spellcheck="false"
+                  autocomplete="off"
+                  list="modelSuggestions"
+                  placeholder="deepseek-chat"
+                />
+                <datalist id="modelSuggestions">
+                  <option value="deepseek-chat"></option>
+                  <option value="deepseek-reasoner"></option>
+                  <option value="gpt-4o-mini"></option>
+                  <option value="qwen-plus"></option>
+                </datalist>
+              </div>
+
+              <div class="test-row">
+                <button class="button-secondary" id="testButton" type="button">测试连接</button>
+                <div class="test-result" id="testResult" role="status" aria-live="polite"></div>
+              </div>
+            </section>
+
+            <section class="card">
+              <header class="card-header">
+                <div class="section-number">02</div>
+                <div>
+                  <h2>翻译偏好</h2>
+                  <p>告诉模型你的领域和术语习惯，会比通用翻译更准确。</p>
+                </div>
+              </header>
+
+              <div class="field">
+                <label for="targetLanguage">目标语言</label>
+                <input id="targetLanguage" name="targetLanguage" type="text" list="languageSuggestions" placeholder="简体中文" />
+                <datalist id="languageSuggestions">
+                  <option value="简体中文"></option>
+                  <option value="繁體中文"></option>
+                  <option value="English"></option>
+                  <option value="日本語"></option>
+                </datalist>
+                <div class="chip-row" aria-label="常用目标语言">
+                  <button type="button" class="chip" data-language="简体中文">简体中文</button>
+                  <button type="button" class="chip" data-language="繁體中文">繁體中文</button>
+                  <button type="button" class="chip" data-language="English">English</button>
+                  <button type="button" class="chip" data-language="日本語">日本語</button>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="uiLanguage">界面语言</label>
+                <select id="uiLanguage" name="uiLanguage">
+                  <option value="auto">自动</option>
+                  <option value="en">English</option>
+                  <option value="zh">中文</option>
+                </select>
+                <div class="hint">切换设置页、浮层、弹窗和 PDF 阅读器的界面语言；目标语言与它互不影响。</div>
+              </div>
+
+              <div class="field">
+                <label for="customPrompt">领域与术语偏好 <span class="optional">可选</span></label>
+                <textarea
+                  id="customPrompt"
+                  name="customPrompt"
+                  rows="3"
+                  maxlength="3000"
+                  placeholder="例如：机器学习系统方向；transformer 统一译为“变换器”，KV cache 保留英文；保持作者使用的时态强度。"
+                ></textarea>
+                <div class="hint">每次翻译都会附加这段偏好，最多 3000 字符。</div>
+              </div>
+
+              <label class="switch-row" for="showBubble">
+                <span>
+                  <strong>选中文字后显示快捷按钮</strong>
+                  <small>关闭后仍可通过右键菜单或快捷键使用。</small>
+                </span>
+                <span class="switch">
+                  <input id="showBubble" name="showBubble" type="checkbox" />
+                  <span class="switch-track" aria-hidden="true"></span>
+                </span>
+              </label>
+
+              <details class="advanced">
+                <summary>高级选项</summary>
+                <div class="range-field">
+                  <div class="range-head">
+                    <label for="temperature">模型温度</label>
+                    <output id="temperatureValue" for="temperature">0.2</output>
+                  </div>
+                  <input id="temperature" name="temperature" type="range" min="0" max="1" step="0.1" value="0.2" />
+                  <div class="range-labels"><span>更稳定 · 适合术语</span><span>更灵活 · 适合润色</span></div>
+                </div>
+              </details>
+            </section>
+
+            <div class="form-actions">
+              <button class="button-primary" id="saveButton" type="submit">保存设置</button>
+              <button class="button-quiet" id="resetButton" type="button">恢复默认</button>
+              <div class="form-status" id="formStatus" role="status" aria-live="polite"></div>
+            </div>
+          </form>
+        </div>
+
+        <aside class="side-column">
+          <section class="card guide-card">
+            <div class="side-label">QUICK GUIDE</div>
+            <h2>在论文页面上</h2>
+            <div class="guide-item">
+              <span class="guide-step">A</span>
+              <div>
+                <strong>划过一句或一段</strong>
+                <p>松开鼠标后，选区旁会出现「翻译 / 解释」。</p>
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-step">B</span>
+              <div>
+                <strong>只选中公式也可以</strong>
+                <p>公式会被识别为独立对象，自动切换为逐符号解释。</p>
+              </div>
+            </div>
+            <div class="guide-item">
+              <span class="guide-step">C</span>
+              <div>
+                <strong>复制带 LaTeX 的 Markdown</strong>
+                <p>粘进笔记软件后，公式仍可继续渲染或编辑。</p>
+              </div>
+            </div>
+            <div class="shortcut-box">
+              <div><span>翻译选区</span><kbd>Alt</kbd><span>+</span><kbd>Shift</kbd><span>+</span><kbd>T</kbd></div>
+              <div><span>解释选区</span><kbd>Alt</kbd><span>+</span><kbd>Shift</kbd><span>+</span><kbd>E</kbd></div>
+            </div>
+          </section>
+
+          <section class="card privacy-card">
+            <div class="side-label">PRIVACY</div>
+            <h2>数据如何流动</h2>
+            <ul class="privacy-list">
+              <li>选中的文字与公式在页面内提取。</li>
+              <li>点击处理时，只把当前选区发送到你配置的模型接口。</li>
+              <li>API Key 与偏好设置保存在本机浏览器。</li>
+              <li>没有 ScholarLens 中转服务器，也没有统计埋点。</li>
+            </ul>
+            <p class="privacy-foot">请遵守你所在机构对论文内容与第三方 API 的使用规定。</p>
+          </section>
+
+          <section class="tip-card">
+            <span class="tip-mark">∑</span>
+            <p><strong>公式识别提示</strong>网页使用 MathML、KaTeX、MathJax 或文本中的 LaTeX 时效果最好；纯图片公式会读取图片的 alt 文本。</p>
+          </section>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="page-footer">
+      <span>ScholarLens · 为不打断思路的论文阅读而做</span>
+      <span class="footer-sep">/</span>
+      <a href="https://api-docs.deepseek.com/zh-cn/" target="_blank" rel="noopener noreferrer">API 配置参考</a>
+    </footer>
+
+    <script src="options.js"></script>
+  </body>
+</html>

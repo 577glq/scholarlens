@@ -1,0 +1,22 @@
+{
+  "name": "academic-select-translator",
+  "version": "0.4.0",
+  "private": true,
+  "description": "Academic selection translator with formula preservation for browsers and Zotero.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch",
+    "package": "node build.mjs && node scripts/package.mjs"
+  },
+  "dependencies": {
+    "katex": "^0.19.1",
+    "mathml-to-latex": "^1.8.0",
+    "pdfjs-dist": "^3.11.174"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "fflate": "^0.8.3"
+  }
+}

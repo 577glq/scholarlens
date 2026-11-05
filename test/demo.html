@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Scaling Laws for Neural Language Models — Demo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #1b2925;
+        --muted: #6d7b75;
+        --line: #d9d3c6;
+        --paper: #faf7ef;
+        --accent: #984d2f;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 85% -10%, rgba(207, 151, 93, 0.13), transparent 34%),
+          var(--paper);
+        color: var(--ink);
+        font-family: Georgia, "Times New Roman", "Songti SC", serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .topline {
+        border-bottom: 1px solid var(--line);
+        background: rgba(250, 247, 239, 0.88);
+      }
+      .topline-inner {
+        width: min(920px, calc(100% - 48px));
+        margin: 0 auto;
+        padding: 16px 0;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        color: var(--muted);
+        font-family: "Segoe UI", "PingFang SC", sans-serif;
+        font-size: 11px;
+        letter-spacing: 0.03em;
+      }
+      .topline strong { color: var(--ink); font-weight: 600; }
+      .topline .spacer { flex: 1; }
+      .topline .pill {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 4px 9px;
+      }
+      main {
+        width: min(920px, calc(100% - 48px));
+        margin: 0 auto;
+        padding: 56px 0 80px;
+      }
+      .paper-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 18px;
+        color: var(--accent);
+        font-family: "Segoe UI", sans-serif;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+      .paper-label::before {
+        content: "";
+        width: 28px;
+        height: 1px;
+        background: currentColor;
+      }
+      h1 {
+        max-width: 760px;
+        margin: 0;
+        font-size: clamp(34px, 5vw, 48px);
+        font-weight: 400;
+        letter-spacing: -0.025em;
+        line-height: 1.15;
+      }
+      .authors {
+        margin: 20px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.7;
+      }
+      .authors b { color: var(--ink); font-weight: 600; }
+      .abstract {
+        max-width: 820px;
+        margin: 36px 0 0;
+        padding: 21px 24px;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 253, 248, 0.55);
+        color: #394a44;
+        font-size: 14px;
+        line-height: 1.85;
+      }
+      .abstract strong {
+        display: block;
+        margin-bottom: 7px;
+        color: var(--ink);
+        font-family: "Segoe UI", sans-serif;
+        font-size: 9.5px;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+      .article {
+        display: grid;
+        grid-template-columns: 46px minmax(0, 1fr);
+        gap: 26px;
+        margin-top: 44px;
+      }
+      .margin-note {
+        padding-top: 4px;
+        color: #9c9b90;
+        font-family: "Cascadia Code", Consolas, monospace;
+        font-size: 9px;
+        line-height: 1.7;
+        writing-mode: vertical-rl;
+        height: max-content;
+      }
+      h2 {
+        margin: 0 0 15px;
+        font-family: "Segoe UI", "PingFang SC", sans-serif;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.035em;
+      }
+      h2 span {
+        margin-right: 9px;
+        color: var(--accent);
+        font-weight: 500;
+      }
+      p {
+        margin: 0 0 18px;
+        font-size: 16px;
+        line-height: 1.9;
+      }
+      a { color: var(--accent); text-underline-offset: 2px; }
+      .katex, .mjx-container, .formula-img, math {
+        white-space: nowrap;
+      }
+      .katex-mathml, .mjx-assistive-mml, mjx-assistive-mml {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(1px, 1px, 1px, 1px);
+      }
+      .katex-html, .mjx-visible {
+        display: inline-block;
+        margin: 0 2px;
+        padding: 1px 4px;
+        border-bottom: 1px solid rgba(152, 77, 47, 0.3);
+        font-size: 15px;
+        font-style: italic;
+        letter-spacing: 0.01em;
+        vertical-align: -1px;
+      }
+      .katex-html .op, .mjx-visible .op { color: #8b5a42; font-style: normal; }
+      .formula-img {
+        display: inline-block;
+        margin: 0 2px;
+        padding: 1px 5px;
+        border-bottom: 1px solid rgba(152, 77, 47, 0.3);
+        color: #574b40;
+        font-size: 14px;
+        font-style: italic;
+      }
+      math { font-size: 1.08em; }
+      .display-math {
+        display: flex;
+        justify-content: center;
+        margin: 26px 0;
+        padding: 17px 10px;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 253, 248, 0.4);
+        font-size: 18px;
+      }
+      .footnote {
+        margin-top: 34px;
+        padding-top: 15px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.7;
+      }
+      .hint {
+        position: fixed;
+        right: 24px;
+        bottom: 22px;
+        max-width: 250px;
+        padding: 10px 13px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 253, 248, 0.9);
+        color: var(--muted);
+        font-family: "Segoe UI", "PingFang SC", sans-serif;
+        font-size: 10px;
+        line-height: 1.55;
+        box-shadow: 0 8px 30px -18px rgba(25, 40, 34, 0.4);
+      }
+      .hint b { color: var(--ink); }
+      @media (max-width: 700px) {
+        .article { grid-template-columns: 1fr; }
+        .margin-note { display: none; }
+        .hint { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="topline">
+      <div class="topline-inner">
+        <strong>arXiv</strong>
+        <span>&gt;</span>
+        <span>cs.LG</span>
+        <span class="spacer"></span>
+        <span class="pill">Preprint · 2026</span>
+        <span>PDF</span>
+        <span>HTML</span>
+      </div>
+    </div>
+
+    <main>
+      <div class="paper-label">Machine Learning · Scaling</div>
+      <h1>Scaling Laws for Neural Language Models</h1>
+      <p class="authors"><b>Alex Rivera, Mei Chen, Jonathan Park</b><br />Institute for Foundation Models</p>
+
+      <div class="abstract">
+        <strong>Abstract</strong>
+        We study empirical scaling laws for language model performance on the cross-entropy loss. We find that the loss scales as a power-law with model size, dataset size, and the amount of compute used for training, with trends spanning more than seven orders of magnitude.
+      </div>
+
+      <div class="article">
+        <div class="margin-note">SCALING · EMPIRICAL · POWER LAW</div>
+        <div>
+          <h2><span>2.</span> Empirical scaling laws</h2>
+
+          <p id="target">
+            We study the test loss of autoregressive language models trained on
+            <a href="#ref-12">WebText2</a>. Let
+            <span class="katex">
+              <span class="katex-mathml">
+                <math xmlns="http://www.w3.org/1998/Math/MathML">
+                  <semantics>
+                    <mrow>
+                      <mi>L</mi><mo>(</mo><mi>N</mi><mo>,</mo><mi>D</mi><mo>)</mo>
+                      <mo>=</mo>
+                      <msup><mrow><mo>(</mo><mfrac><msub><mi>N</mi><mi>c</mi></msub><mi>N</mi></mfrac><mo>)</mo></mrow><msub><mi>α</mi><mi>N</mi></msub></msup>
+                      <mo>+</mo>
+                      <msup><mrow><mo>(</mo><mfrac><msub><mi>D</mi><mi>c</mi></msub><mi>D</mi></mfrac><mo>)</mo></mrow><msub><mi>α</mi><mi>D</mi></msub></msup>
+                    </mrow>
+                    <annotation encoding="application/x-tex">L(N,D) = \left(\frac{N_c}{N}\right)^{\alpha_N} + \left(\frac{D_c}{D}\right)^{\alpha_D}</annotation>
+                  </semantics>
+                </math>
+              </span>
+              <span class="katex-html" aria-hidden="true">L(N,D) = (N<sub>c</sub>/N)<sup>α<sub>N</sub></sup> + (D<sub>c</sub>/D)<sup>α<sub>D</sub></sup></span>
+            </span>
+            denote the test loss for a model with
+            <span class="mjx-container" data-latex="N" display="false">
+              <span class="mjx-visible">N</span>
+              <mjx-assistive-mml><math><mi>N</mi></math></mjx-assistive-mml>
+            </span>
+            parameters and
+            <span class="mjx-container" data-latex="D" display="false">
+              <span class="mjx-visible">D</span>
+              <mjx-assistive-mml><math><mi>D</mi></math></mjx-assistive-mml>
+            </span>
+            training tokens. The quantities <span class="mjx-container" data-latex="N_c, D_c" display="false"><span class="mjx-visible">N<sub>c</sub>, D<sub>c</sub></span><mjx-assistive-mml><math><mrow><msub><mi>N</mi><mi>c</mi></msub><mo>,</mo><msub><mi>D</mi><mi>c</mi></msub></mrow></math></mjx-assistive-mml></span>
+            are characteristic scales, while the exponents <span class="mjx-container" data-latex="\alpha_N" display="false"><span class="mjx-visible">α<sub>N</sub></span><mjx-assistive-mml><math><msub><mi>α</mi><mi>N</mi></msub></math></mjx-assistive-mml></span>
+            and <span class="mjx-container" data-latex="\alpha_D" display="false"><span class="mjx-visible">α<sub>D</sub></span><mjx-assistive-mml><math><msub><mi>α</mi><mi>D</mi></msub></mjx-assistive-mml></span>
+            control how quickly the loss falls with scale. Under an optimal compute allocation, the empirical frontier follows
+            <span class="formula-img" role="math" alt="{\displaystyle L(N,D) \approx L_\infty + a N^{-\alpha_N} + b D^{-\alpha_D}}">L(N,D) ≈ L<sub>∞</sub> + aN<sup>−α<sub>N</sub></sup> + bD<sup>−α<sub>D</sub></sup></span>.
+            We observe that these exponents vary only weakly across architecture families, which suggests that scale alone explains much of the reported variance [12, 19].
+          </p>
+
+          <div class="display-math" id="formula-only">
+            <math xmlns="http://www.w3.org/1998/Math/MathML" display="block">
+              <semantics>
+                <mrow>
+                  <mi>L</mi><mo stretchy="false">(</mo><mi>N</mi><mo>,</mo><mi>D</mi><mo stretchy="false">)</mo>
+                  <mo>=</mo>
+                  <msub><mi>L</mi><mi>∞</mi></msub>
+                  <mo>+</mo>
+                  <mi>a</mi><msup><mi>N</mi><mrow><mo>−</mo><msub><mi>α</mi><mi>N</mi></msub></mrow></msup>
+                  <mo>+</mo>
+                  <mi>b</mi><msup><mi>D</mi><mrow><mo>−</mo><msub><mi>α</mi><mi>D</mi></msub></mrow></msup>
+                </mrow>
+                <annotation encoding="application/x-tex">L(N,D) = L_\infty + aN^{-\alpha_N} + bD^{-\alpha_D}</annotation>
+              </semantics>
+            </math>
+          </div>
+
+          <p>
+            The fitted exponents are <span class="formula-img" alt="{\displaystyle \alpha_N \approx 0.076}">α<sub>N</sub> ≈ 0.076</span>
+            and <span class="formula-img" alt="{\displaystyle \alpha_D \approx 0.095}">α<sub>D</sub> ≈ 0.095</span>.
+            These estimates imply that increasing model size by <span class="formula-img" alt="10\times">10×</span>
+            reduces the irreducible loss by roughly <span class="formula-img" alt="{\displaystyle 10^{-\alpha_N}}">10<sup>−α<sub>N</sub></sup></span>,
+            holding the data budget fixed. The relationship is not a theorem about all architectures; it is an empirical regularity within the measured range.
+          </p>
+
+          <p>
+            A natural question is whether compute-optimal training simply maximizes <span class="formula-img" alt="N">N</span>
+            for a fixed budget. The data indicate otherwise: once <span class="formula-img" alt="D">D</span> becomes too small,
+            additional parameters yield diminishing returns, and the two terms in the loss trade off against one another.
+            This is why the fitted frontier in Eq. (2) must be reported together with the data regime in which it was measured.
+          </p>
+
+          <div class="footnote" id="ref-12">
+            [12] Kaplan et al. Scaling Laws for Neural Language Models. 2020.<br />
+            [19] Hoffmann et al. Training Compute-Optimal Large Language Models. 2022.
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <div class="hint"><b>试试划词：</b>选中第二段，或直接选中中间的公式，然后点击浮出的按钮。</div>
+  </body>
+</html>

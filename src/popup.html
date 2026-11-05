@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>ScholarLens · PDF / 剪贴板翻译</title>
+    <link rel="stylesheet" href="vendor/katex.min.css" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="pop-header">
+      <div class="pop-brand">
+        <img src="icons/icon32.png" width="30" height="30" alt="" />
+        <div>
+          <div class="pop-name">ScholarLens</div>
+          <div class="pop-kicker">PDF / CLIPBOARD TRANSLATOR</div>
+        </div>
+      </div>
+      <div class="pop-header-actions">
+        <span class="pop-target" id="targetLabel">→ 简体中文</span>
+        <button class="pop-icon" id="settingsButton" type="button" title="设置" aria-label="打开设置">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.09A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.09A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.09A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.14.36.35.7.6 1 .3.3.7.45 1.1.45H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z"></path></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="pop-notice" id="configNotice" hidden>
+      <span>尚未配置 API Key，粘贴文字后无法调用模型。</span>
+      <button id="noticeSettings" type="button">去设置</button>
+    </div>
+
+    <div class="pdf-open-banner" id="pdfBanner" hidden>
+      <div class="pdf-open-copy">
+        <strong>这是 PDF 页面</strong>
+        <span>在 ScholarLens 阅读器中打开，选中文字按 <kbd>Alt</kbd>+<kbd>T</kbd> 直接翻译，不用复制粘贴。</span>
+      </div>
+      <button id="openPdfButton" type="button">打开阅读器</button>
+    </div>
+
+    <section class="pop-input-view" id="inputView">
+      <div class="mode-tabs" role="tablist" aria-label="处理方式">
+        <button class="mode-tab" type="button" role="tab" data-mode="translate" aria-selected="true">翻译</button>
+        <button class="mode-tab" type="button" role="tab" data-mode="explain" aria-selected="false">解释</button>
+      </div>
+
+      <label class="sr-only" for="sourceInput">要翻译的文字</label>
+      <textarea
+        id="sourceInput"
+        class="source-input"
+        spellcheck="false"
+        placeholder="把 PDF 或论文中的英文粘贴到这里…&#10;&#10;支持 $...$、\(...\)、\[...\] 形式的 LaTeX 公式。"
+      ></textarea>
+
+      <div class="input-meta">
+        <span id="charCount">0 字符</span>
+        <span class="input-meta-sep">·</span>
+        <span>Ctrl+Enter 开始</span>
+      </div>
+
+      <div class="pdf-tip">
+        <div class="pdf-tip-copy">
+          <strong>PDF 建议</strong>
+          在 PDF 页面点扩展图标后，优先用「打开阅读器」直接选中 + <kbd>Alt</kbd>+<kbd>T</kbd>；阅读器无法载入时，再复制文字到这里粘贴。
+        </div>
+        <button class="pdf-home-button" id="openPdfHome" type="button">打开 PDF 阅读器</button>
+      </div>
+
+      <div class="input-actions">
+        <button class="button-primary" id="translateButton" type="button">翻译</button>
+        <button class="button-quiet" id="clearButton" type="button">清空</button>
+        <span class="input-status" id="inputStatus" role="status" aria-live="polite"></span>
+      </div>
+    </section>
+
+    <section class="pop-result-view" id="resultView" hidden>
+      <div class="result-top">
+        <button class="back-button" id="backButton" type="button">← 返回编辑</button>
+        <span class="result-meta" id="resultMeta"></span>
+      </div>
+
+      <div class="pop-result" id="result" aria-live="polite"></div>
+
+      <details class="pop-formulas" id="formulasDetails" hidden>
+        <summary>公式对照 <span id="formulaMeta"></span></summary>
+        <div class="pop-formula-list" id="formulaList"></div>
+      </details>
+
+      <footer class="result-footer">
+        <div class="result-status">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">准备就绪</span>
+        </div>
+        <div class="result-actions">
+          <button class="button-small" id="stopButton" type="button" hidden>停止</button>
+          <button class="button-small" id="retryButton" type="button" hidden>重试</button>
+          <button class="button-small button-primary" id="copyButton" type="button" disabled>复制 Markdown</button>
+        </div>
+      </footer>
+    </section>
+
+    <footer class="pop-footer">
+      <span>公式在本地抽取，只有当前文本会发送到你配置的接口。</span>
+      <span class="pop-footer-shortcut"><kbd>Esc</kbd> 关闭</span>
+    </footer>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
