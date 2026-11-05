@@ -3,7 +3,7 @@
 **Academic reading, without losing your train of thought.**  
 Selection translation with formula preservation for browsers and Zotero.
 
-*中文：学术阅读，不打断思路。为浏览器与 Zotero 提供保留公式的划词翻译。*
+*学术阅读，不打断思路。为浏览器与 Zotero 提供保留公式的划词翻译。*
 
 ScholarLens is an open-source academic translator that keeps equations, terminology, citations, and notation intact. It extracts formulas before translation, protects them as placeholders, and renders them back with KaTeX.
 
