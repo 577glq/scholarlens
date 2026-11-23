@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "ScholarLens — Academic Selection Translator",
   "short_name": "ScholarLens",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Academic selection translation with formula preservation for web pages, online PDFs, and local PDFs.",
   "minimum_chrome_version": "109",
   "permissions": [

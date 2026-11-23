@@ -420,7 +420,7 @@ function finalize(text, formulas) {
     formulas: renumbered,
     charCount: output.length,
     truncated: truncation.truncated,
-    formulaOnly: renumbered.length > 0 && visible.length <= 12,
+    formulaOnly: renumbered.length > 0 && visible.length === 0,
     formulaCount: renumbered.length,
   };
 }

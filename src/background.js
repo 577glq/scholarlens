@@ -3,6 +3,7 @@ import {
   loadSettings,
   normalizeApiBase,
   originPattern,
+  PANEL_FONT_SIZE_KEY,
   publicSettings,
 } from './lib/config.js';
 import { buildMessages } from './lib/prompt.js';
@@ -128,7 +129,17 @@ function createRequest(settings, messages, stream) {
 function extractSseDelta(payload) {
   if (!payload || typeof payload !== 'object') return '';
   const choice = payload.choices?.[0];
-  return choice?.delta?.content || choice?.message?.content || '';
+  const content = choice?.delta?.content ?? choice?.message?.content;
+  return typeof content === 'string' ? content : '';
+}
+
+function requireCompleteOutput(finishReason) {
+  if (finishReason === 'length') {
+    throw new AppError('TRUNCATED', '译文达到模型输出上限。请选取较短的段落后重试。');
+  }
+  if (finishReason === 'content_filter') {
+    throw new AppError('FILTERED', '模型的内容过滤中止了输出。');
+  }
 }
 
 async function streamChat({ settings, messages, signal, onDelta }) {
@@ -146,8 +157,9 @@ async function streamChat({ settings, messages, signal, onDelta }) {
     const data = await response.json().catch(async () => {
       throw new AppError('BAD_RESPONSE', '接口返回了无法解析的内容。请确认该地址兼容 OpenAI Chat Completions。');
     });
+    requireCompleteOutput(data?.choices?.[0]?.finish_reason);
     const content = extractSseDelta(data);
-    if (!content) throw new AppError('EMPTY', '接口返回了空内容。');
+    if (!content.trim()) throw new AppError('EMPTY', '接口返回了空内容。');
     onDelta(content);
     return { text: content, usage: data.usage || null };
   }
@@ -157,18 +169,19 @@ async function streamChat({ settings, messages, signal, onDelta }) {
   let buffer = '';
   let full = '';
   let usage = null;
-  let finished = false;
+  let finishReason;
+  let receivedDone = false;
 
   const handleBlock = (block) => {
     const dataLines = block
-      .split('\n')
+      .split(/\r?\n/)
       .filter((line) => line.startsWith('data:'))
       .map((line) => line.slice(5).trimStart());
     if (!dataLines.length) return;
     const data = dataLines.join('\n').trim();
     if (!data) return;
     if (data === '[DONE]') {
-      finished = true;
+      receivedDone = true;
       return;
     }
     let payload;
@@ -177,6 +190,7 @@ async function streamChat({ settings, messages, signal, onDelta }) {
     } catch {
       return;
     }
+    if (!payload || typeof payload !== 'object') return;
     if (payload.usage) usage = payload.usage;
     if (payload.error) {
       const message = payload.error.message || '翻译接口返回错误。';
@@ -187,24 +201,32 @@ async function streamChat({ settings, messages, signal, onDelta }) {
       full += delta;
       onDelta(delta);
     }
-    if (payload.choices?.[0]?.finish_reason) finished = true;
+    finishReason = payload.choices?.[0]?.finish_reason || finishReason;
   };
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
-    let boundary;
-    while ((boundary = buffer.indexOf('\n\n')) !== -1) {
-      const block = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + 2);
-      handleBlock(block);
+  try {
+    while (!receivedDone) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      // Keep line endings intact until we have a whole event, even when CRLF is split across chunks.
+      buffer += decoder.decode(value, { stream: true });
+      let boundary;
+      while (!receivedDone && (boundary = /\r?\n\r?\n/.exec(buffer))) {
+        handleBlock(buffer.slice(0, boundary.index));
+        buffer = buffer.slice(boundary.index + boundary[0].length);
+      }
     }
+    buffer += decoder.decode();
+    if (!receivedDone && buffer.trim()) handleBlock(buffer);
+  } finally {
+    void reader.cancel().catch(() => {});
   }
-  buffer += decoder.decode();
-  if (buffer.trim()) handleBlock(buffer.replace(/\r\n/g, '\n'));
+  requireCompleteOutput(finishReason);
+  if (!receivedDone && !finishReason) {
+    throw new AppError('INCOMPLETE', '连接在译文完成前结束，请重试。');
+  }
   if (!full.trim()) {
-    throw new AppError('EMPTY', finished ? '接口返回了空译文，请重试。' : '连接提前结束，未收到译文，请重试。');
+    throw new AppError('EMPTY', '接口返回了空译文，请重试。');
   }
   return { text: full, usage };
 }
@@ -256,9 +278,10 @@ async function handleTranslatePort(port) {
     controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
+    let apiBase = '';
     try {
       const settings = await loadSettings();
-      const { apiBase } = validateConfig(settings);
+      ({ apiBase } = validateConfig(settings));
       await requireHostPermission(apiBase);
       const messages = buildMessages({
         text: message.text,
@@ -275,7 +298,7 @@ async function handleTranslatePort(port) {
       });
       sendPort(port, { type: 'done', requestId, text: result.text, usage: result.usage });
     } catch (error) {
-      const appError = error instanceof AppError ? error : networkError(error, message?.apiBase || '');
+      const appError = networkError(error, apiBase);
       sendPort(port, {
         type: 'error',
         requestId,
@@ -302,6 +325,16 @@ function isExtensionPage(sender) {
   return Boolean(sender?.url?.startsWith(chrome.runtime.getURL('')));
 }
 
+async function getTabZoom(tabId) {
+  if (tabId == null) return 1;
+  try {
+    const zoom = await chrome.tabs.getZoom(tabId);
+    return Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+  } catch {
+    return 1;
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || typeof message.type !== 'string') return false;
 
@@ -312,9 +345,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'get-public-settings') {
-    loadSettings()
-      .then((settings) => sendResponse({ ok: true, settings: publicSettings(settings) }))
+    Promise.all([loadSettings(), chrome.storage.local.get(PANEL_FONT_SIZE_KEY), getTabZoom(sender?.tab?.id)])
+      .then(([settings, preferences, tabZoom]) => sendResponse({
+        ok: true,
+        settings: publicSettings(settings),
+        panelFontSize: preferences[PANEL_FONT_SIZE_KEY],
+        tabZoom,
+      }))
       .catch((error) => sendResponse({ ok: false, message: error.message }));
+    return true;
+  }
+
+  if (message.type === 'get-tab-zoom') {
+    getTabZoom(sender?.tab?.id).then((tabZoom) => sendResponse({ tabZoom }));
     return true;
   }
 

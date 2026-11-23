@@ -13,7 +13,7 @@ ScholarLens is an open-source academic translator that keeps equations, terminol
 
 | Component | Works with | Version |
 |---|---|---|
-| Browser extension | Chrome / Edge · web pages · online PDFs · local PDFs | 0.4.0 |
+| Browser extension | Chrome / Edge · web pages · online PDFs · local PDFs | 0.4.1 |
 | Zotero plugin | Zotero 7+ built-in PDF reader | 0.1.4 |
 
 The browser interface supports **English and Chinese** from Settings → Interface language. Target language and interface language are independent.
@@ -45,7 +45,7 @@ The browser interface supports **English and Chinese** from Settings → Interfa
 
 ### Browser extension
 
-1. Download [ScholarLens-v0.4.0.zip](https://github.com/577glq/scholarlens/releases/download/v0.4.0/ScholarLens-v0.4.0.zip).
+1. Download the browser extension ZIP from [GitHub Releases](https://github.com/577glq/scholarlens/releases), or [build the current version from source](#development).
 2. Unzip it anywhere.
 3. Open `chrome://extensions` or `edge://extensions`.
 4. Enable **Developer mode**, choose **Load unpacked**, and select the folder containing `manifest.json`.
@@ -77,6 +77,8 @@ Keep API keys in the extension or Zotero settings. Never commit them to this rep
 ### Browser
 
 - **Web pages:** select text, then click **Translate / Explain** or press `Alt+T` / `Alt+Shift+E`.
+- **Translation panel:** drag an edge or corner to resize it, or focus the bottom-right grip and use the arrow keys. The panel keeps its size when reopened on the same page.
+- **Reading size:** use **A− / A+** in the translation panel to change the font size of the source, translation, and formulas. ScholarLens remembers your choice.
 - **Online PDFs:** open the toolbar popup and choose **Open PDF reader**.
 - **Local PDFs:** open **Open PDF reader**, then choose or drop a PDF file.
 - In the ScholarLens reader, select text and press `Alt+T`.
@@ -140,7 +142,9 @@ npm run build
 npm run package
 ```
 
-`npm run build` writes `dist/`; `npm run package` writes `release/ScholarLens-v0.4.0.zip`.
+`npm run build` writes `dist/`; `npm run package` writes `release/ScholarLens-v0.4.1.zip`.
+
+Run `node --test test/translation-stream.mjs` for the translation stream regression checks.
 
 ### Zotero plugin
 
@@ -154,7 +158,7 @@ See [scholarlens-zotero/README.md](scholarlens-zotero/README.md).
 
 ## Release assets
 
-- `ScholarLens-v0.4.0.zip` — browser extension
+- `ScholarLens-v0.4.1.zip` — browser extension
 - `scholarlens-zotero-0.1.4.xpi` — Zotero plugin
 
 Build artifacts are published as GitHub Releases and are not committed to Git history.

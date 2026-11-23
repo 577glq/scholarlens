@@ -1,5 +1,13 @@
 # Changelog
 
+## Browser extension 0.4.1
+
+- Resize the translation panel by dragging any edge or corner, or by using the arrow keys on the bottom-right grip.
+- Keep the chosen size when reopening the panel on the same page, and keep the panel within the browser window.
+- Keep the translation panel, PDF reader toolbar, shortcut hint, and open-file card readable when the browser tab is zoomed out. The PDF retains its own zoom controls.
+- Add persistent reading font controls for the source, translation, and formulas.
+- Handle split streaming events and report interrupted or truncated responses. Keep short selections containing prose in Translate mode.
+
 ## Browser extension 0.4.0
 
 - Added an **Interface language** setting: Auto, English, or Chinese.

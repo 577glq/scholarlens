@@ -43,11 +43,20 @@ button {
   display: none !important;
 }
 
+/* Scale the reader controls independently of the PDF canvas and text layer. */
+.viewer-header,
+.viewer-hint,
+.viewer-start,
+.viewer-overlay {
+  zoom: var(--sl-viewer-ui-scale, 1);
+}
+
 .viewer-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 6px 16px;
   flex: 0 0 auto;
   min-height: 52px;
   padding: 9px 16px;
@@ -59,6 +68,7 @@ button {
 
 .viewer-brand {
   display: flex;
+  flex: 1 1 200px;
   align-items: center;
   gap: 9px;
   min-width: 0;
@@ -99,19 +109,21 @@ button {
 }
 
 .viewer-file {
-  max-width: 38vw;
+  max-width: 32rem;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--ink-soft);
-  font-size: 10.5px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
 .viewer-controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 3px;
   flex: 0 0 auto;
+  max-width: 100%;
 }
 
 .viewer-control {
@@ -140,7 +152,7 @@ button {
 
 .viewer-fit {
   padding: 0 8px;
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 600;
 }
 
@@ -149,7 +161,7 @@ button {
   min-width: 42px;
   color: var(--muted);
   font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 9px;
+  font-size: 11px;
   text-align: center;
   white-space: nowrap;
 }
@@ -166,21 +178,19 @@ button {
 }
 
 .viewer-hint {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
   flex: 0 0 auto;
   min-height: 31px;
   padding: 5px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: #3d4742;
   color: rgba(255, 252, 245, 0.74);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
+  text-align: center;
 }
 
 .viewer-hint-mark {
+  margin-inline-end: 4px;
   color: #e3a475;
   font-family: Georgia, serif;
   font-size: 17px;
@@ -197,7 +207,7 @@ button {
   background: rgba(255, 255, 255, 0.08);
   color: #fff8eb;
   font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 8.5px;
+  font-size: 10px;
   line-height: 1.45;
   text-align: center;
 }
@@ -212,7 +222,7 @@ button {
   background: #fffdf8;
   color: #5a4a3c;
   font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 8.5px;
+  font-size: 10px;
   line-height: 1.45;
   text-align: center;
 }
@@ -290,7 +300,9 @@ button {
   z-index: 4;
   display: grid;
   place-items: center;
+  align-items: safe center;
   padding: 24px;
+  overflow: auto;
   background: rgba(41, 50, 46, 0.72);
   backdrop-filter: blur(3px);
 }
@@ -301,6 +313,7 @@ button {
   z-index: 5;
   display: grid;
   place-items: center;
+  align-items: safe center;
   padding: 26px;
   overflow-y: auto;
   background:
@@ -336,7 +349,7 @@ button {
 .viewer-start-copy {
   margin: 0 0 18px;
   color: var(--ink-soft);
-  font-size: 11.5px;
+  font-size: 13px;
   line-height: 1.7;
 }
 
@@ -381,13 +394,13 @@ button {
 
 .drop-zone strong {
   color: var(--ink);
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .drop-zone > span:last-child {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .start-divider {
@@ -396,7 +409,7 @@ button {
   gap: 10px;
   margin: 16px 0 10px;
   color: var(--muted);
-  font-size: 9.5px;
+  font-size: 11px;
 }
 
 .start-divider::before,
@@ -420,7 +433,7 @@ button {
   padding: 8px 10px;
   background: #fffefb;
   color: var(--ink);
-  font-size: 11px;
+  font-size: 13px;
   outline: none;
 }
 
@@ -436,7 +449,7 @@ button {
   padding: 0 14px;
   background: var(--pine);
   color: #f8f3e8;
-  font-size: 10.5px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -455,7 +468,7 @@ button {
 .start-note {
   margin: 14px 0 0;
   color: #9a9286;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.5;
 }
 
@@ -463,7 +476,7 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 280px;
+  width: min(280px, 100%);
   padding: 18px 20px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 11px;

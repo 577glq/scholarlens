@@ -13,6 +13,7 @@
   --sl-shadow: 0 30px 80px -24px rgba(18, 34, 29, 0.52), 0 5px 18px rgba(18, 34, 29, 0.12);
   all: initial;
   color-scheme: light;
+  -webkit-text-size-adjust: 100%;
   font-family: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   font-size: 14px;
   line-height: 1.5;
@@ -95,6 +96,7 @@ button {
 
 .sl-bubble-btn:focus-visible,
 .sl-icon-btn:focus-visible,
+.sl-font-button:focus-visible,
 .sl-tab:focus-visible,
 .sl-action:focus-visible,
 .sl-link:focus-visible {
@@ -139,8 +141,8 @@ button {
   display: flex;
   flex-direction: column;
   width: 434px;
-  max-width: calc(100vw - 24px);
-  max-height: min(78vh, 740px);
+  max-width: calc(100% - 24px);
+  max-height: min(var(--sl-panel-auto-height, 100%), var(--sl-panel-move-limit, 100%), 100% - 24px);
   overflow: hidden;
   border: 1px solid rgba(40, 59, 52, 0.16);
   border-radius: 17px;
@@ -157,6 +159,69 @@ button {
   height: 3px;
   background: linear-gradient(90deg, #173a34 0%, #35695d 56%, #d98552 100%);
   z-index: 2;
+  pointer-events: none;
+}
+
+.sl-resize {
+  position: absolute;
+  z-index: 3;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  touch-action: none;
+  user-select: none;
+}
+
+.sl-resize-n,
+.sl-resize-s {
+  inset-inline: 16px;
+  height: 6px;
+  cursor: ns-resize;
+}
+
+.sl-resize-e,
+.sl-resize-w {
+  inset-block: 16px;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.sl-resize-ne,
+.sl-resize-nw,
+.sl-resize-sw,
+.sl-resize-se {
+  width: 16px;
+  height: 16px;
+}
+
+.sl-resize-n, .sl-resize-ne, .sl-resize-nw { top: 0; }
+.sl-resize-s, .sl-resize-se, .sl-resize-sw { bottom: 0; }
+.sl-resize-w, .sl-resize-nw, .sl-resize-sw { left: 0; }
+.sl-resize-e, .sl-resize-ne, .sl-resize-se { right: 0; }
+.sl-resize-nw, .sl-resize-se { cursor: nwse-resize; }
+.sl-resize-ne, .sl-resize-sw { cursor: nesw-resize; }
+
+.sl-resize-se {
+  width: 20px;
+  height: 20px;
+  color: var(--sl-muted);
+}
+
+.sl-resize-se::after {
+  position: absolute;
+  inset: 4px;
+  background: linear-gradient(135deg, transparent 42%, currentColor 42% 50%, transparent 50% 66%, currentColor 66% 74%, transparent 74%);
+  content: "";
+}
+
+.sl-resize-se:hover,
+.sl-resize-se.sl-resizing {
+  color: var(--sl-pine);
+}
+
+.sl-resize-se:focus-visible {
+  outline: 2px solid var(--sl-accent);
+  outline-offset: -3px;
 }
 
 .sl-header {
@@ -167,6 +232,13 @@ button {
   padding: 14px 14px 9px;
   cursor: grab;
   user-select: none;
+  touch-action: none;
+}
+
+.sl-header,
+.sl-tabs,
+.sl-footer {
+  flex-shrink: 0;
 }
 
 .sl-header.sl-dragging {
@@ -214,12 +286,52 @@ button {
   letter-spacing: 0.14em;
   line-height: 1;
   text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sl-header-actions {
   display: flex;
   align-items: center;
   gap: 2px;
+  flex: 0 0 auto;
+}
+
+.sl-brand > div:last-child {
+  min-width: 0;
+}
+
+.sl-font-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 4px;
+  padding-right: 5px;
+  border-right: 1px solid var(--sl-line);
+}
+
+.sl-font-button {
+  min-width: 28px;
+  height: 27px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 4px;
+  background: transparent;
+  color: var(--sl-ink-soft);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sl-font-button:hover:not(:disabled) {
+  background: var(--sl-paper-deep);
+  color: var(--sl-pine);
+}
+
+.sl-font-button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .sl-header-actions .sl-icon-btn {
@@ -271,6 +383,8 @@ button {
   font-weight: 600;
   letter-spacing: 0.01em;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sl-scroll {
@@ -279,6 +393,7 @@ button {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 12px 16px 16px;
+  font-size: var(--sl-reading-size, 16px);
   scrollbar-width: thin;
   scrollbar-color: rgba(44, 69, 61, 0.25) transparent;
 }
@@ -346,7 +461,7 @@ button {
   overflow: auto;
   padding: 0 10px 9px;
   color: var(--sl-ink-soft);
-  font-size: 11.5px;
+  font-size: 0.875em;
   line-height: 1.62;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -355,7 +470,6 @@ button {
 .sl-result {
   color: var(--sl-ink);
   font-family: Georgia, "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC", "SimSun", serif;
-  font-size: 14.8px;
   line-height: 1.78;
   overflow-wrap: anywhere;
 }
@@ -363,7 +477,6 @@ button {
 .sl-result.sl-streaming {
   white-space: pre-wrap;
   font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  font-size: 13px;
   line-height: 1.72;
   color: var(--sl-ink-soft);
 }
@@ -397,7 +510,7 @@ button {
   margin: 1.1em 0 0.45em;
   color: #173a34;
   font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  font-size: 13px;
+  font-size: 1em;
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1.45;
@@ -445,7 +558,7 @@ button {
   background: #edf0e9;
   color: #223a33;
   font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
-  font-size: 11.5px;
+  font-size: 0.875em;
   line-height: 1.55;
   white-space: pre;
 }
@@ -462,7 +575,7 @@ button {
   margin: 0.6em 0;
   border-collapse: collapse;
   font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  font-size: 11.5px;
+  font-size: 0.875em;
 }
 
 .sl-table th,
@@ -593,7 +706,7 @@ button {
   overflow-x: auto;
   overflow-y: hidden;
   color: var(--sl-ink-soft);
-  font-size: 12px;
+  font-size: 0.9em;
   scrollbar-width: thin;
 }
 
@@ -736,7 +849,7 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 9px 14px;
+  padding: 9px 22px 9px 14px;
   border-top: 1px solid var(--sl-line);
   background: rgba(246, 240, 228, 0.72);
 }
@@ -758,6 +871,11 @@ button {
   flex: 0 0 auto;
   border-radius: 50%;
   background: #8a9c94;
+}
+
+.sl-status [data-role="status-text"] {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sl-status-dot.is-live {
@@ -856,11 +974,9 @@ button {
 @keyframes sl-panel-in {
   from {
     opacity: 0;
-    transform: translateY(5px) scale(0.985);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
   }
 }
 
@@ -913,7 +1029,6 @@ button {
 
 @media (max-width: 520px) {
   .sl-panel {
-    width: calc(100vw - 24px);
-    max-height: 76vh;
+    width: calc(100% - 24px);
   }
 }

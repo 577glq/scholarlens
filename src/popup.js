@@ -268,6 +268,9 @@ function renderError(entry) {
     RATE_LIMIT: t('请求受限', 'Rate limited'),
     NETWORK: t('连接失败', 'Connection failed'),
     TIMEOUT: t('请求超时', 'Request timed out'),
+    INCOMPLETE: t('译文未传完，请重试', 'The translation stream ended early. Try again.'),
+    TRUNCATED: t('已达输出上限，请选取较短的段落', 'Output limit reached. Select a shorter passage.'),
+    FILTERED: t('输出被模型过滤', 'The model filtered the output.'),
     CONFIG: t('配置不完整', 'Incomplete configuration'),
     CONTEXT: t('扩展需要刷新', 'Extension needs a refresh'),
   };
@@ -351,6 +354,7 @@ function startRequest() {
   currentRequest = request;
 
   port.onMessage.addListener((message) => {
+    if (currentRequest !== request || request.stopped || request.finished) return;
     if (message?.requestId && message.requestId !== requestId) return;
     if (message?.type === 'delta') {
       request.full += message.delta || '';
@@ -360,6 +364,7 @@ function startRequest() {
     if (message?.type === 'done') {
       request.finished = true;
       abortRequestPort(request);
+      currentRequest = null;
       const output = cleanOutput(message.text || request.full, extraction.formulas);
       if (!output) {
         renderResult({
@@ -376,7 +381,6 @@ function startRequest() {
         usage: message.usage || null,
         partial: false,
       });
-      currentRequest = null;
       return;
     }
     if (message?.type === 'error') {
@@ -408,6 +412,7 @@ function startRequest() {
     });
   } catch {
     request.finished = true;
+    abortRequestPort(request);
     currentRequest = null;
     renderResult({
       status: 'error',

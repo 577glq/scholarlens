@@ -202,6 +202,7 @@ export const EN = {
   'ScholarLens 学术翻译': 'ScholarLens academic translation',
   'ScholarLens 设置': 'ScholarLens settings',
   '关闭面板': 'Close panel',
+  '拖动或使用方向键调整浮窗大小': 'Drag or use the arrow keys to resize the panel',
   '原文': 'Source',
   '公式对照': 'Formula reference',
   '准备就绪': 'Ready',
@@ -246,6 +247,9 @@ export const EN = {
 
 
 const EN_ATTR = {
+  '阅读字号': 'Reading font size',
+  '减小字号': 'Decrease font size',
+  '增大字号': 'Increase font size',
   'ScholarLens 设置首页': 'ScholarLens settings home',
   '关闭欢迎提示': 'Close welcome message',
   '显示或隐藏 API Key': 'Show or hide API key',

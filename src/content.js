@@ -5,7 +5,7 @@ import {
   selectionRect,
 } from './lib/extract.js';
 import { renderMarkdown, renderSingleFormula } from './lib/markdown.js';
-import { SETTINGS_KEY } from './lib/config.js';
+import { PANEL_FONT_SIZE_KEY, SETTINGS_KEY } from './lib/config.js';
 import { localizeDom, makeI18n } from './lib/i18n.js';
 import panelCss from './content/panel.css';
 
@@ -13,6 +13,12 @@ globalThis.__ScholarLensI18n = { localizeDom, makeI18n };
 
 const HOST_ID = 'scholarlens-root';
 const PORT_NAME = 'scholarlens-translate';
+const PANEL_MARGIN = 12;
+const MIN_PANEL_WIDTH = 300;
+const MIN_PANEL_HEIGHT = 200;
+const DEFAULT_FONT_SIZE = 16;
+const MIN_FONT_SIZE = 12;
+const MAX_FONT_SIZE = 30;
 const DEFAULT_SETTINGS = {
   hasApiKey: false,
   targetLanguage: '简体中文',
@@ -112,6 +118,8 @@ class ScholarLensApp {
     this.host = null;
     this.shadow = null;
     this.lastCommandAt = 0;
+    this.tabZoom = 1;
+    this.uiScale = 1;
     this.i18n = makeI18n('auto');
     this.lang = this.i18n.lang;
   }
@@ -121,15 +129,20 @@ class ScholarLensApp {
   }
 
   async init() {
+    let fontSize;
     try {
       const response = await chrome.runtime.sendMessage({ type: 'get-public-settings' }).catch(() => null);
       if (response?.ok && response.settings) {
         this.settings = { ...DEFAULT_SETTINGS, ...response.settings };
+        this.tabZoom = response.tabZoom ?? 1;
+        fontSize = response.panelFontSize;
       }
     } catch {
       // Defaults are good enough if the service worker is waking up.
     }
     this.mount();
+    this.updateUiScale(this.tabZoom);
+    this.setFontSize(fontSize);
     this.i18n = makeI18n(this.settings.uiLanguage);
     this.lang = this.i18n.lang;
     localizeDom(this.shadow, this.lang);
@@ -162,6 +175,7 @@ class ScholarLensApp {
 
     const layer = document.createElement('div');
     layer.className = 'sl-layer';
+    this.layer = layer;
     layer.innerHTML = `
       <div class="sl-bubble" hidden role="toolbar" aria-label="ScholarLens 划词操作">
         <span class="sl-bubble-mark" aria-hidden="true">S</span>
@@ -181,6 +195,10 @@ class ScholarLensApp {
             </div>
           </div>
           <div class="sl-header-actions">
+            <div class="sl-font-controls" role="group" aria-label="阅读字号">
+              <button class="sl-font-button" type="button" data-role="font-down" title="减小字号" aria-label="减小字号">A−</button>
+              <button class="sl-font-button" type="button" data-role="font-up" title="增大字号" aria-label="增大字号">A+</button>
+            </div>
             <button class="sl-icon-btn" type="button" data-role="panel-settings" title="设置" aria-label="打开设置">${ICONS.settings}</button>
             <button class="sl-icon-btn" type="button" data-role="close" title="关闭 (Esc)" aria-label="关闭面板">${ICONS.close}</button>
           </div>
@@ -217,6 +235,16 @@ class ScholarLensApp {
             <button class="sl-action sl-action-primary" type="button" data-role="copy" disabled>${ICONS.copy}<span>复制 Markdown</span></button>
           </div>
         </footer>
+
+        <span class="sl-resize sl-resize-n" data-resize="n" aria-hidden="true"></span>
+        <span class="sl-resize sl-resize-s" data-resize="s" aria-hidden="true"></span>
+        <span class="sl-resize sl-resize-e" data-resize="e" aria-hidden="true"></span>
+        <span class="sl-resize sl-resize-w" data-resize="w" aria-hidden="true"></span>
+        <span class="sl-resize sl-resize-ne" data-resize="ne" aria-hidden="true"></span>
+        <span class="sl-resize sl-resize-nw" data-resize="nw" aria-hidden="true"></span>
+        <span class="sl-resize sl-resize-sw" data-resize="sw" aria-hidden="true"></span>
+        <button class="sl-resize sl-resize-se" type="button" data-resize="se"
+          title="拖动或使用方向键调整浮窗大小" aria-label="拖动或使用方向键调整浮窗大小"></button>
       </section>
 
       <div class="sl-toast" data-role="toast" hidden></div>
@@ -244,7 +272,8 @@ class ScholarLensApp {
     this.toast = shadow.querySelector('[data-role="toast"]');
 
     this.header = shadow.querySelector('.sl-header');
-    this.header.addEventListener('pointerdown', (event) => this.startDrag(event));
+    this.fontDown = shadow.querySelector('[data-role="font-down"]');
+    this.fontUp = shadow.querySelector('[data-role="font-up"]');
   }
 
   bindExtensionEvents() {
@@ -335,7 +364,10 @@ class ScholarLensApp {
 
     this.onResize = () => {
       this.hideBubble();
+      this.stopPanelGesture?.();
       if (!this.panel.hidden) this.clampPanelToViewport();
+      clearTimeout(this.zoomTimer);
+      this.zoomTimer = setTimeout(() => this.refreshTabZoom(), 80);
     };
 
     document.addEventListener('mouseup', this.onMouseUp, true);
@@ -358,8 +390,30 @@ class ScholarLensApp {
     click('copy', () => this.copyResult());
     click('retry', () => this.retry());
     click('stop', () => this.stopGeneration());
+    click('font-down', () => this.changeFontSize(-2));
+    click('font-up', () => this.changeFontSize(2));
 
     this.bubble.addEventListener('mousedown', (event) => event.preventDefault());
+    this.header.addEventListener('pointerdown', (event) => this.startDrag(event));
+    this.shadow.querySelectorAll('[data-resize]').forEach((handle) => {
+      handle.addEventListener('pointerdown', (event) => this.startResize(event));
+    });
+    this.shadow.querySelector('[data-resize="se"]').addEventListener('keydown', (event) => {
+      if (event.altKey || event.ctrlKey || event.metaKey || !event.key.startsWith('Arrow')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const step = event.shiftKey ? 40 : 12;
+      const { clientWidth, clientHeight } = this.layer;
+      const width = this.panel.offsetWidth;
+      const height = this.panel.offsetHeight;
+      const dx = event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0;
+      const dy = event.key === 'ArrowDown' ? step : event.key === 'ArrowUp' ? -step : 0;
+      this.setPanelSize(
+        clamp(width + dx, Math.min(width, MIN_PANEL_WIDTH), clientWidth - 2 * PANEL_MARGIN),
+        clamp(height + dy, Math.min(height, MIN_PANEL_HEIGHT), clientHeight - 2 * PANEL_MARGIN),
+      );
+      this.clampPanelToViewport();
+    });
 
     this.shadow.querySelectorAll('[data-tab]').forEach((button) => {
       button.addEventListener('click', () => this.switchMode(button.dataset.tab));
@@ -451,9 +505,8 @@ class ScholarLensApp {
     this.bubble.style.top = '-9999px';
     const bubbleWidth = this.bubble.offsetWidth || 190;
     const bubbleHeight = this.bubble.offsetHeight || 36;
-    const rect = context.rect;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const rect = this.toLayerRect(context.rect);
+    const { clientWidth: vw, clientHeight: vh } = this.layer;
     let left = rect.left + rect.width / 2 - bubbleWidth / 2;
     left = clamp(left, 8, Math.max(8, vw - bubbleWidth - 8));
     let top = rect.top - bubbleHeight - 9;
@@ -497,6 +550,7 @@ class ScholarLensApp {
   }
 
   startSession(extraction, mode, context) {
+    this.stopPanelGesture?.();
     this.abortActiveRequest();
     this.session = {
       extraction,
@@ -510,7 +564,8 @@ class ScholarLensApp {
     this.updateTargetLabel();
     this.renderSource(extraction);
     this.renderFormulaList(extraction.formulas);
-    this.switchMode(mode, { force: true, position: context.bounds || context.rect });
+    this.switchMode(mode, { force: true });
+    this.positionPanel(context.bounds || context.rect);
   }
 
   renderSource(extraction) {
@@ -588,11 +643,11 @@ class ScholarLensApp {
     if (cached && !options.force) {
       this.renderEntry(cached);
     } else {
-      this.requestTranslation(mode, options);
+      this.requestTranslation(mode);
     }
   }
 
-  requestTranslation(mode, options = {}) {
+  requestTranslation(mode) {
     const session = this.session;
     if (!session) return;
     this.abortActiveRequest();
@@ -628,6 +683,7 @@ class ScholarLensApp {
     this.currentRequest = request;
 
     port.onMessage.addListener((message) => {
+      if (this.currentRequest !== request || request.stopped || request.finished) return;
       if (message?.requestId && message.requestId !== requestId) return;
       if (message?.type === 'delta') {
         request.full += message.delta || '';
@@ -643,14 +699,13 @@ class ScholarLensApp {
       if (message?.type === 'error') {
         request.finished = true;
         this.abortPort(request);
-        if (request.stopped) return;
         this.setError(session, mode, { code: message.code, message: message.message });
         this.currentRequest = null;
       }
     });
 
     port.onDisconnect.addListener(() => {
-      if (request.finished || request.stopped) return;
+      if (this.currentRequest !== request || request.finished || request.stopped) return;
       request.finished = true;
       this.setError(session, mode, {
         code: 'DISCONNECTED',
@@ -672,13 +727,13 @@ class ScholarLensApp {
       });
     } catch {
       request.finished = true;
+      this.abortPort(request);
+      this.currentRequest = null;
       this.setError(session, mode, {
         code: 'CONTEXT',
         message: this.t('扩展上下文已失效，请刷新页面后重试。', 'The extension context is invalid. Refresh the page and try again.'),
       });
     }
-
-    if (options.position) this.positionPanel(options.position);
   }
 
   schedulePreview(request) {
@@ -796,7 +851,8 @@ class ScholarLensApp {
     this.result.appendChild(note);
   }
 
-  renderErrorCard(entry) {    const card = makeElement('div', 'sl-error');
+  renderErrorCard(entry) {
+    const card = makeElement('div', 'sl-error');
     const title = makeElement('div', 'sl-error-title');
     const titleText =
       {
@@ -807,6 +863,9 @@ class ScholarLensApp {
         RATE_LIMIT: this.t('请求受限', 'Rate limited'),
         NETWORK: this.t('连接失败', 'Connection failed'),
         TIMEOUT: this.t('请求超时', 'Request timed out'),
+        INCOMPLETE: this.t('译文未传完，请重试', 'The translation stream ended early. Try again.'),
+        TRUNCATED: this.t('已达输出上限，请选取较短的段落', 'Output limit reached. Select a shorter passage.'),
+        FILTERED: this.t('输出被模型过滤', 'The model filtered the output.'),
         CONFIG: this.t('配置不完整', 'Incomplete configuration'),
         CONTEXT: this.t('扩展需要刷新', 'Extension needs a refresh'),
       }[entry.code] || this.t('处理失败', 'Request failed');
@@ -940,92 +999,175 @@ class ScholarLensApp {
     }
   }
 
-  positionPanel(rect) {
-    if (this.panel.hidden) return;
-    if (!rect) {
-      this.panel.style.top = '12px';
-      this.panel.style.left = '12px';
-      this.panel.style.bottom = 'auto';
-      return;
+  async refreshTabZoom() {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'get-tab-zoom' });
+      this.updateUiScale(response?.tabZoom ?? this.tabZoom);
+    } catch {
+      // The tab can navigate while the service worker responds.
     }
-    this.panel.style.visibility = 'hidden';
-    this.panel.style.left = '-9999px';
-    this.panel.style.top = '-9999px';
-    this.panel.style.bottom = 'auto';
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const margin = 12;
-    const width = this.panel.offsetWidth || 434;
-    let left = clamp(rect.left - 18, margin, Math.max(margin, vw - width - margin));
+  }
 
-    const spaceBelow = vh - rect.bottom - margin * 2;
-    const spaceAbove = rect.top - margin * 2;
-    const preferred = Math.min(vh * 0.78, 740);
-    let maxHeight;
-    if (spaceBelow >= 240 && spaceBelow >= spaceAbove) {
-      const top = clamp(rect.bottom + 9, margin, vh - 220);
-      this.panel.style.top = `${Math.round(top)}px`;
-      this.panel.style.bottom = 'auto';
-      maxHeight = Math.min(preferred, vh - top - margin);
-    } else if (spaceAbove >= 240) {
-      const bottom = vh - rect.top + 9;
-      this.panel.style.top = 'auto';
-      this.panel.style.bottom = `${Math.round(clamp(bottom, margin, vh - 220))}px`;
-      maxHeight = Math.min(preferred, vh - bottom - margin);
-    } else {
-      this.panel.style.top = `${margin}px`;
-      this.panel.style.bottom = 'auto';
-      maxHeight = vh - margin * 2;
+  updateUiScale(tabZoom) {
+    this.tabZoom = tabZoom;
+    // Keep reading controls legible when zooming out. Honor browser zoom above 100%.
+    const scale = Math.max(1, 1 / tabZoom);
+    const rootZoom = Number(getComputedStyle(document.documentElement).zoom) || 1;
+    const layerZoom = String(scale / rootZoom);
+    if (this.layer.style.zoom === layerZoom && this.uiScale === scale) return;
+    this.stopPanelGesture?.();
+    this.layer.style.zoom = layerZoom;
+    this.uiScale = scale;
+    if (location.href.split(/[?#]/, 1)[0] === chrome.runtime.getURL('pdfviewer.html')) {
+      document.documentElement.style.setProperty('--sl-viewer-ui-scale', String(scale));
     }
-    maxHeight = Math.min(Math.max(240, maxHeight), vh - margin * 2);
-    this.panel.style.maxHeight = `${Math.round(maxHeight)}px`;
-    this.panel.style.left = `${Math.round(left)}px`;
-    this.panel.style.visibility = '';
+    this.hideBubble();
+    if (!this.panel.hidden) this.clampPanelToViewport();
+  }
+
+  toLayerRect({ left, top, right, bottom, width, height }) {
+    const scale = this.uiScale;
+    return {
+      left: left / scale, top: top / scale, right: right / scale, bottom: bottom / scale,
+      width: width / scale, height: height / scale,
+    };
+  }
+
+  setFontSize(size) {
+    this.fontSize = Number.isFinite(size) ? clamp(size, MIN_FONT_SIZE, MAX_FONT_SIZE) : DEFAULT_FONT_SIZE;
+    this.panel.style.setProperty('--sl-reading-size', `${this.fontSize}px`);
+    this.fontDown.disabled = this.fontSize <= MIN_FONT_SIZE;
+    this.fontUp.disabled = this.fontSize >= MAX_FONT_SIZE;
+  }
+
+  async changeFontSize(step) {
+    this.setFontSize(this.fontSize + step);
+    if (!this.panel.hidden) this.clampPanelToViewport();
+    try {
+      await chrome.storage.local.set({ [PANEL_FONT_SIZE_KEY]: this.fontSize });
+    } catch {
+      // The current panel can still use the chosen size.
+    }
+  }
+
+  positionPanel(selection) {
+    if (this.panel.hidden) return;
+    const rect = selection && this.toLayerRect(selection);
+    const { style } = this.panel;
+    const { clientWidth: vw, clientHeight: vh } = this.layer;
+    const margin = PANEL_MARGIN;
+    style.removeProperty('--sl-panel-move-limit');
+    const belowTop = Math.max(margin, (rect?.bottom ?? 0) + 9);
+    const aboveBottom = Math.max(margin, vh - (rect?.top ?? 0) + 9);
+    const spaceBelow = vh - belowTop - margin;
+    const spaceAbove = vh - aboveBottom - margin;
+    const sized = Boolean(style.height);
+    const minSpace = sized ? this.panel.offsetHeight : 240;
+    const useBelow = spaceBelow >= minSpace && spaceBelow >= spaceAbove;
+    const useAbove = !useBelow && spaceAbove >= minSpace;
+    if (!sized) {
+      const available = useAbove ? spaceAbove : useBelow ? spaceBelow : vh - 2 * margin;
+      style.setProperty('--sl-panel-auto-height', `${Math.min(available, vh * 0.78, 740)}px`);
+    }
+    const width = this.panel.offsetWidth;
+    const left = clamp((rect?.left ?? margin + 18) - 18, margin, vw - width - margin);
+    style.left = `${left}px`;
+    style.top = useAbove ? 'auto' : `${useBelow ? belowTop : margin}px`;
+    style.bottom = useAbove ? `${aboveBottom}px` : 'auto';
+    style.visibility = '';
+  }
+
+  setPanelSize(width, height) {
+    const { style } = this.panel;
+    style.removeProperty('--sl-panel-auto-height');
+    style.removeProperty('--sl-panel-move-limit');
+    style.width = `${width}px`;
+    style.height = `${height}px`;
+  }
+
+  movePanel(left, top, width, height) {
+    const { style } = this.panel;
+    const { clientWidth, clientHeight } = this.layer;
+    const margin = PANEL_MARGIN;
+    const x = clamp(left, margin, clientWidth - width - margin);
+    const y = clamp(top, margin, clientHeight - height - margin);
+    style.left = `${x}px`;
+    style.top = `${y}px`;
+    style.bottom = 'auto';
+    if (!style.height) {
+      // Keep an unresized panel inside the viewport as streamed content makes it grow.
+      style.setProperty('--sl-panel-move-limit', `calc(100% - ${y + margin}px)`);
+    }
   }
 
   clampPanelToViewport() {
-    if (!this.panel || this.panel.hidden) return;
-    const rect = this.panel.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    let left = clamp(rect.left, 12, Math.max(12, vw - rect.width - 12));
-    let top = clamp(rect.top, 12, Math.max(12, vh - 120));
-    this.panel.style.left = `${Math.round(left)}px`;
-    this.panel.style.top = `${Math.round(top)}px`;
-    this.panel.style.bottom = 'auto';
+    this.panel.style.removeProperty('--sl-panel-move-limit');
+    const rect = this.toLayerRect(this.panel.getBoundingClientRect());
+    this.movePanel(rect.left, rect.top, rect.width, rect.height);
   }
 
   startDrag(event) {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || this.stopPanelGesture) return;
     if (event.target.closest('button, a, summary')) return;
-    const rect = this.panel.getBoundingClientRect();
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const startLeft = rect.left;
-    const startTop = rect.top;
-    this.header.classList.add('sl-dragging');
-    this.panel.style.bottom = 'auto';
-    this.panel.style.top = `${startTop}px`;
-    this.panel.style.left = `${startLeft}px`;
-    const onMove = (moveEvent) => {
-      const width = this.panel.offsetWidth;
-      const maxLeft = Math.max(12, window.innerWidth - width - 12);
-      const left = clamp(startLeft + moveEvent.clientX - startX, 12, maxLeft);
-      const top = clamp(startTop + moveEvent.clientY - startY, 12, Math.max(12, window.innerHeight - 80));
-      this.panel.style.left = `${left}px`;
-      this.panel.style.top = `${top}px`;
+    const rect = this.toLayerRect(this.panel.getBoundingClientRect());
+    this.trackPanelPointer(event, 'sl-dragging', (dx, dy) => {
+      this.movePanel(rect.left + dx, rect.top + dy, rect.width, rect.height);
+    });
+  }
+
+  startResize(event) {
+    if (event.button !== 0 || this.stopPanelGesture) return;
+    const { resize } = event.currentTarget.dataset;
+    const rect = this.toLayerRect(this.panel.getBoundingClientRect());
+    const margin = PANEL_MARGIN;
+    const { clientWidth, clientHeight } = this.layer;
+    const minWidth = Math.min(MIN_PANEL_WIDTH, rect.width);
+    const minHeight = Math.min(MIN_PANEL_HEIGHT, rect.height);
+    let resized = false;
+    this.trackPanelPointer(event, 'sl-resizing', (dx, dy) => {
+      let { left, top, right, bottom } = rect;
+      if (resize.includes('w')) left = clamp(left + dx, margin, right - minWidth);
+      if (resize.includes('e')) right = clamp(right + dx, left + minWidth, clientWidth - margin);
+      if (resize.includes('n')) top = clamp(top + dy, margin, bottom - minHeight);
+      if (resize.includes('s')) bottom = clamp(bottom + dy, top + minHeight, clientHeight - margin);
+      const width = right - left;
+      const height = bottom - top;
+      if (!resized && width === rect.width && height === rect.height) return;
+      resized = true;
+      this.setPanelSize(width, height);
+      this.movePanel(left, top, width, height);
+    });
+  }
+
+  trackPanelPointer(event, className, onMove) {
+    const handle = event.currentTarget;
+    const { pointerId, clientX, clientY } = event;
+    const scale = this.uiScale;
+    const controller = new AbortController();
+    const options = { signal: controller.signal };
+    handle.setPointerCapture(pointerId);
+    handle.classList.add(className);
+    this.stopPanelGesture = () => {
+      controller.abort();
+      handle.classList.remove(className);
+      this.stopPanelGesture = null;
+      if (handle.hasPointerCapture(pointerId)) handle.releasePointerCapture(pointerId);
     };
-    const onUp = () => {
-      this.header.classList.remove('sl-dragging');
-      document.removeEventListener('pointermove', onMove, true);
-      document.removeEventListener('pointerup', onUp, true);
-    };
-    document.addEventListener('pointermove', onMove, true);
-    document.addEventListener('pointerup', onUp, true);
+    handle.addEventListener('pointermove', (moveEvent) => {
+      if (moveEvent.pointerId === pointerId) {
+        onMove((moveEvent.clientX - clientX) / scale, (moveEvent.clientY - clientY) / scale);
+      }
+    }, options);
+    for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+      handle.addEventListener(type, (endEvent) => {
+        if (endEvent.pointerId === pointerId) this.stopPanelGesture();
+      }, options);
+    }
     event.preventDefault();
   }
 
   closePanel() {
+    this.stopPanelGesture?.();
     this.abortActiveRequest();
     this.session = null;
     if (this.panel) {

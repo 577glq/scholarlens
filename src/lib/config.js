@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS = {
 };
 
 export const SETTINGS_KEY = 'scholarlensSettings';
+export const PANEL_FONT_SIZE_KEY = 'scholarlensPanelFontSize';
 
 export async function loadSettings() {
   const stored = await chrome.storage.local.get(SETTINGS_KEY);

@@ -1,6 +1,6 @@
 {
   "name": "academic-select-translator",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "Academic selection translator with formula preservation for browsers and Zotero.",
   "license": "MIT",
